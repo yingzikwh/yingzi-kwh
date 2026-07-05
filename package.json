@@ -1,0 +1,58 @@
+{
+  "name": "yingzi-kwh",
+  "version": "1.0.0",
+  "description": "影子kwh - A CLI AI coding agent inspired by Claude Code, with web terminal and cover splash",
+  "main": "src/launcher.js",
+  "bin": {
+    "yingzi-kwh": "./bin/yingzi-kwh.js",
+    "kwh": "./bin/yingzi-kwh.js"
+  },
+  "scripts": {
+    "start": "node bin/yingzi-kwh.js",
+    "server": "node src/server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "ai",
+    "agent",
+    "cli",
+    "coding",
+    "llm",
+    "deepseek",
+    "qwen",
+    "yingzi-kwh"
+  ],
+  "author": "影子kwh Team",
+  "license": "MIT",
+  "dependencies": {
+    "chalk": "^4.1.2",
+    "diff": "^9.0.0",
+    "highlight.js": "^11.11.1",
+    "readline": "^1.3.0",
+    "simple-git": "^3.36.0",
+    "ws": "^8.18.0"
+  },
+  "pkg": {
+    "scripts": [
+      "src/**/*.js"
+    ],
+    "assets": [
+      "public/**/*",
+      "assets/**/*"
+    ],
+    "targets": [
+      "node18-win-x64"
+    ],
+    "outputPath": "dist"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "jimp": "^0.22.12",
+    "nexe": "^5.0.0-beta.4",
+    "pkg": "^5.8.1",
+    "png-to-ico": "^3.0.1",
+    "rcedit": "^5.0.1"
+  }
+}

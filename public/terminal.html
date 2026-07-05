@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>影子kwh - Terminal</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;700&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Noto Sans SC', sans-serif;
+      background: #0d0d0d;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.6rem 1.2rem;
+      background: linear-gradient(90deg, #1a0a2e, #2d1b4e);
+      border-bottom: 1px solid rgba(255, 105, 180, 0.2);
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+    }
+
+    .header-left img {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      object-fit: cover;
+    }
+
+    .header-title {
+      color: #ff69b4;
+      font-weight: 700;
+      font-size: 1rem;
+      letter-spacing: 0.05em;
+    }
+
+    .header-status {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      color: rgba(255, 255, 255, 0.5);
+      font-size: 0.75rem;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #22c55e;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .header-btn {
+      padding: 0.3rem 0.8rem;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 6px;
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-decoration: none;
+    }
+
+    .header-btn:hover {
+      background: rgba(255, 105, 180, 0.2);
+      border-color: rgba(255, 105, 180, 0.4);
+      color: #fff;
+    }
+
+    /* Terminal container */
+    .terminal-wrap {
+      flex: 1;
+      padding: 1rem;
+      overflow: hidden;
+    }
+
+    #terminal {
+      width: 100%;
+      height: 100%;
+    }
+
+    .xterm .xterm-viewport {
+      background: #0d0d0d !important;
+    }
+
+    /* Input area */
+    .input-area {
+      display: flex;
+      padding: 0.6rem 1rem;
+      background: #141414;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      gap: 0.6rem;
+    }
+
+    .input-area input {
+      flex: 1;
+      padding: 0.5rem 1rem;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      color: #fff;
+      font-size: 0.9rem;
+      outline: none;
+      font-family: inherit;
+    }
+
+    .input-area input::placeholder {
+      color: rgba(255, 255, 255, 0.3);
+    }
+
+    .input-area input:focus {
+      border-color: rgba(255, 105, 180, 0.4);
+    }
+
+    .send-btn {
+      padding: 0.5rem 1.2rem;
+      background: linear-gradient(135deg, #ff69b4, #da70d6);
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+
+    .send-btn:hover { opacity: 0.9; }
+    .send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Loading */
+    .loading {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      z-index: 100;
+    }
+
+    .loading.active { display: block; }
+
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(255, 105, 180, 0.2);
+      border-top-color: #ff69b4;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 1rem;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loading-text {
+      color: #ff69b4;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-left">
+      <img src="/assets/cover.jpg" alt="logo">
+      <span class="header-title">影子kwh</span>
+      <span class="header-status">
+        <span class="status-dot"></span>
+        <span id="conn-status">Connected</span>
+      </span>
+    </div>
+    <div class="header-actions">
+      <a href="/cover.html" class="header-btn">&#9664; 返回封面</a>
+      <button class="header-btn" onclick="clearChat()">清空</button>
+    </div>
+  </div>
+
+  <div class="terminal-wrap">
+    <div id="terminal"></div>
+  </div>
+
+  <div class="input-area">
+    <input type="text" id="msg-input" placeholder="输入消息... (Shift+Enter 换行, Enter 发送)" autocomplete="off">
+    <button class="send-btn" id="send-btn" onclick="sendMessage()">发送</button>
+  </div>
+
+  <div class="loading" id="loading">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">影子kwh 思考中...</div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+  <script>
+    const term = new Terminal({
+      fontSize: 14,
+      fontFamily: '"Noto Sans SC", "Cascadia Code", "Fira Code", monospace',
+      theme: {
+        background: '#0d0d0d',
+        foreground: '#e0e0e0',
+        cursor: '#ff69b4',
+        selectionBackground: 'rgba(255, 105, 180, 0.3)',
+        black: '#1a1a1a',
+        red: '#ff6b6b',
+        green: '#51cf66',
+        yellow: '#ffd43b',
+        blue: '#74c0fc',
+        magenta: '#ff69b4',
+        cyan: '#22b8cf',
+        white: '#f8f9fa'
+      },
+      cursorBlink: true,
+      scrollback: 5000,
+      allowTransparency: true
+    });
+
+    const fitAddon = new FitAddon.FitAddon();
+    term.loadAddon(fitAddon);
+    term.open(document.getElementById('terminal'));
+    fitAddon.fit();
+
+    let messageHistory = [];
+    let historyIndex = -1;
+
+    function printBanner() {
+      term.writeln('');
+      term.writeln('\x1b[35m  ___  _           _     _    _  _    _ \x1b[0m');
+      term.writeln('\x1b[35m / _ \| |         | |   | |  | || |  | |\x1b[0m');
+      term.writeln('\x1b[35m/ /_\ \\ | ___  ___| |_  | |  | || |__| |\x1b[0m');
+      term.writeln('\x1b[35m|  _  || |/ _ \/ __| __| | |/\| ||  __  |\x1b[0m');
+      term.writeln('\x1b[35m| | | || |  __/\__ \ |_  \  /\  /| |  | |\x1b[0m');
+      term.writeln('\x1b[35m\_| |_||_|\___||___/\__|  \/  \/ |_|  |_|\x1b[0m');
+      term.writeln('');
+      term.writeln('\x1b[90m  影子kwh v1.0.0 - AI Coding Agent\x1b[0m');
+      term.writeln('\x1b[90m  输入消息开始对话，/help 查看命令\x1b[0m');
+      term.writeln('');
+    }
+
+    printBanner();
+    promptInput();
+
+    function promptInput() {
+      term.write('\x1b[36m\n影子kwh \x1b[90m> \x1b[0m');
+    }
+
+    let currentInput = '';
+    let cursorPos = 0;
+
+    term.onData(e => {
+      const code = e.charCodeAt(0);
+      if (code === 13) { // Enter
+        if (currentInput.trim()) {
+          sendToServer(currentInput.trim());
+          messageHistory.push(currentInput.trim());
+          historyIndex = messageHistory.length;
+        }
+        currentInput = '';
+        cursorPos = 0;
+      } else if (code === 127) { // Backspace
+        if (cursorPos > 0) {
+          currentInput = currentInput.slice(0, cursorPos - 1) + currentInput.slice(cursorPos);
+          cursorPos--;
+          rewriteLine();
+        }
+      } else if (e === '\x1b[A') { // Up arrow
+        if (historyIndex > 0) {
+          historyIndex--;
+          currentInput = messageHistory[historyIndex] || '';
+          cursorPos = currentInput.length;
+          rewriteLine();
+        }
+      } else if (e === '\x1b[B') { // Down arrow
+        if (historyIndex < messageHistory.length - 1) {
+          historyIndex++;
+          currentInput = messageHistory[historyIndex] || '';
+          cursorPos = currentInput.length;
+          rewriteLine();
+        } else {
+          historyIndex = messageHistory.length;
+          currentInput = '';
+          cursorPos = 0;
+          rewriteLine();
+        }
+      } else if (e === '\x1b[C') { // Right
+        if (cursorPos < currentInput.length) cursorPos++;
+      } else if (e === '\x1b[D') { // Left
+        if (cursorPos > 0) cursorPos--;
+      } else if (e === '\x1b[H') { // Home
+        cursorPos = 0;
+      } else if (e === '\x1b[F') { // End
+        cursorPos = currentInput.length;
+      } else if (code >= 32 && code !== 127) {
+        currentInput = currentInput.slice(0, cursorPos) + e + currentInput.slice(cursorPos);
+        cursorPos++;
+        rewriteLine();
+      }
+    });
+
+    function rewriteLine() {
+      // Clear current line and rewrite
+      term.write('\x1b[2K\r');
+      term.write('\x1b[36m影子kwh \x1b[90m> \x1b[0m' + currentInput);
+      // Move cursor to correct position
+      const promptLen = '影子kwh > '.length;
+      term.write('\x1b[' + (promptLen + currentInput.length) + 'G');
+      term.write('\x1b[' + (promptLen + cursorPos + 1) + 'G');
+    }
+
+    async function sendToServer(message) {
+      document.getElementById('loading').classList.add('active');
+      document.getElementById('send-btn').disabled = true;
+
+      try {
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message })
+        });
+        const data = await res.json();
+
+        term.writeln('');
+        if (data.error) {
+          term.writeln('\x1b[31mError: ' + data.error + '\x1b[0m');
+        } else {
+          // Print response with word wrap
+          const lines = (data.reply || '').split('\n');
+          for (const line of lines) {
+            term.writeln(line);
+          }
+        }
+      } catch (err) {
+        term.writeln('\x1b[31mError: ' + err.message + '\x1b[0m');
+      } finally {
+        document.getElementById('loading').classList.remove('active');
+        document.getElementById('send-btn').disabled = false;
+        promptInput();
+      }
+    }
+
+    function sendMessage() {
+      const input = document.getElementById('msg-input');
+      const msg = input.value.trim();
+      if (!msg) return;
+      input.value = '';
+
+      // Print user message in terminal
+      term.writeln('\x1b[36m影子kwh \x1b[90m> \x1b[0m' + msg);
+
+      sendToServer(msg);
+    }
+
+    function clearChat() {
+      term.clear();
+      printBanner();
+      promptInput();
+    }
+
+    document.getElementById('msg-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+
+    window.addEventListener('resize', () => fitAddon.fit());
+  </script>
+</body>
+</html>
