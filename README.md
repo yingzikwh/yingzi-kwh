@@ -49,10 +49,10 @@
 
 ```bash
 # 克隆仓库
- git clone https://github.com/YOUR_USERNAME/yingzi-kwh.git
+ git clone https://github.com/yingzikwh/yingzi-kwh.git
  cd yingzi-kwh
 
-# 安装依赖
+# 安装依赖（需要 Node.js 22 及以上）
  npm install
 
 # 首次配置（设置 API Key）
@@ -73,6 +73,23 @@
 npm install -g
 yingzi-kwh --setup
 ```
+
+---
+
+## 打包成单个 exe / Build exe
+
+```bash
+npm install
+npm run build:exe
+```
+
+产物为 `dist/影子kwh.exe`（Node 24 基线，内含 public 与 assets 资源）。
+
+- 打包使用 `@yao-pkg/pkg`，目标平台写在 `package.json` 的 `pkg.targets`（默认 `node24-win-x64`）。
+- 若运行环境不允许执行下载的 Node 基线二进制（字节码预编译失败），脚本会自动退回
+  `--no-bytecode` 模式重试，功能一致、启动略慢。
+- 图标注入由 `resedit` 完成，纯 JS 实现，不依赖外部 exe。
+- 脚本最后会把 exe 复制到桌面；不需要时可自行删除该步骤。
 
 ---
 
